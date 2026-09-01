@@ -98,9 +98,9 @@ source ~/.clash/clashctl off
 - `7890`：HTTP/SOCKS5 混合代理
 - `9090`：Mihomo 外部控制 API
 
-修改端口前，脚本会将配置备份为 `config.yaml.port.bak`。如果容器正在运行，会重建临时容器并同步现有 `.bashrc`/`.zshrc` 代理配置；正常关闭状态不会重新启用代理。
+修改端口前，脚本会将配置备份为 `config.yaml.port.bak`，并把用户设置独立保存到 `ports.env`。如果容器正在运行，会重建临时容器并同步现有 `.bashrc`/`.zshrc` 代理配置；正常关闭状态不会重新启用代理。
 
-端口只写入 `config.yaml`，不会额外写入 `.env`。更新订阅后，以新订阅中的端口为准。
+每次更新订阅后，脚本都会重新应用 `ports.env` 中的代理端口和控制端口，因此用户设置不会被订阅覆盖。要恢复订阅提供的端口，可删除 `~/.clash/ports.env` 后重新运行 `clashctl update`。
 
 ## Web 面板
 
@@ -122,6 +122,7 @@ http://127.0.0.1:9090
 ├── config.yaml            # 当前 Mihomo 配置，权限 0600
 ├── config.yaml.bak        # 更新订阅前的备份，权限 0600
 ├── config.yaml.port.bak   # 修改端口前的备份，权限 0600
+├── ports.env              # 独立保存的端口覆盖值，权限 0600
 └── .env                   # 保存的订阅 URL，权限 0600
 ```
 

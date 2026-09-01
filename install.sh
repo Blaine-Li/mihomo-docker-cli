@@ -9,7 +9,7 @@ set -e
 CLASH_DIR="$HOME/.clash"
 SCRIPT_NAME="clashctl"
 INSTALL_URL="https://v6.gh-proxy.org/https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh"
-SCRIPT_VERSION="2.1.1"
+SCRIPT_VERSION="2.2.0"
 SUBSCRIPTION_USER_AGENT="clash-verge/v2.4.5"
 
 # 颜色输出
@@ -85,8 +85,9 @@ _create_script() {
 CLASH_DIR="$HOME/.clash"
 CONFIG_FILE="$CLASH_DIR/config.yaml"
 ENV_FILE="$CLASH_DIR/.env"
+PORTS_FILE="$CLASH_DIR/ports.env"
 INSTALL_URL="https://v6.gh-proxy.org/https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh"
-SCRIPT_VERSION="2.1.1"
+SCRIPT_VERSION="2.2.0"
 SUBSCRIPTION_USER_AGENT="clash-verge/v2.4.5"
 
 # Docker 镜像
@@ -97,6 +98,7 @@ CONTAINER_NAME="clash"
 chmod 700 "$CLASH_DIR" 2>/dev/null || true
 [ -f "$CONFIG_FILE" ] && chmod 600 "$CONFIG_FILE"
 [ -f "$ENV_FILE" ] && chmod 600 "$ENV_FILE"
+[ -f "$PORTS_FILE" ] && chmod 600 "$PORTS_FILE"
 [ -f "$CONFIG_FILE.bak" ] && chmod 600 "$CONFIG_FILE.bak"
 [ -f "$CONFIG_FILE.port.bak" ] && chmod 600 "$CONFIG_FILE.port.bak"
 
@@ -131,6 +133,18 @@ _external_port_from_config() {
     printf '%s\n' "${value:-9090}"
 }
 
+_port_override() {
+    local key=$1
+    [ -f "$PORTS_FILE" ] || return 0
+    awk -F= -v key="$key" '
+        $1 == key {
+            sub("^[^=]*=", "")
+            print
+            exit
+        }
+    ' "$PORTS_FILE"
+}
+
 _warn_controller_security() {
     local controller secret
     controller=$(_yaml_value "external-controller")
@@ -146,9 +160,11 @@ _warn_controller_security() {
     fi
 }
 
-# 端口以 config.yaml 为准，不额外持久化
-MIXED_PORT=${MIXED_PORT:-$(_mixed_port_from_config)}
-EXTERNAL_PORT=${EXTERNAL_PORT:-$(_external_port_from_config)}
+# 用户端口覆盖值优先于订阅配置
+MIXED_PORT_OVERRIDE=$(_port_override "MIXED_PORT")
+EXTERNAL_PORT_OVERRIDE=$(_port_override "EXTERNAL_PORT")
+MIXED_PORT=${MIXED_PORT_OVERRIDE:-$(_mixed_port_from_config)}
+EXTERNAL_PORT=${EXTERNAL_PORT_OVERRIDE:-$(_external_port_from_config)}
 
 # 颜色输出
 _red() { echo -e "\033[31m$*\033[0m"; }
@@ -182,6 +198,31 @@ _save_subscription_url() {
     printf 'CLASH_CONFIG_URL=%s\n' "$url" >> "$tmp_file"
     mv "$tmp_file" "$ENV_FILE"
     chmod 600 "$ENV_FILE"
+}
+
+_save_port_override() {
+    local key=$1
+    local value=$2
+    local tmp_file="$PORTS_FILE.tmp.$$"
+
+    if [ -f "$PORTS_FILE" ]; then
+        awk -F= -v key="$key" '$1 != key { print }' "$PORTS_FILE" > "$tmp_file" || {
+            rm -f "$tmp_file"
+            return 1
+        }
+    else
+        : > "$tmp_file" || return 1
+    fi
+    printf '%s=%s\n' "$key" "$value" >> "$tmp_file" || {
+        rm -f "$tmp_file"
+        return 1
+    }
+    if mv "$tmp_file" "$PORTS_FILE"; then
+        chmod 600 "$PORTS_FILE"
+    else
+        rm -f "$tmp_file"
+        return 1
+    fi
 }
 
 # 检查 Docker
@@ -231,8 +272,63 @@ _set_yaml_value() {
                 print key ": " value
             }
         }
-    ' "$CONFIG_FILE" > "$tmp_file" && mv "$tmp_file" "$CONFIG_FILE"
-    chmod 600 "$CONFIG_FILE"
+    ' "$CONFIG_FILE" > "$tmp_file" || {
+        rm -f "$tmp_file"
+        return 1
+    }
+    if mv "$tmp_file" "$CONFIG_FILE"; then
+        chmod 600 "$CONFIG_FILE"
+    else
+        rm -f "$tmp_file"
+        return 1
+    fi
+}
+
+_controller_value_for_port() {
+    local port=$1
+    local current_controller controller_host
+
+    current_controller=$(_yaml_value "external-controller")
+    if [[ "$current_controller" == *:* ]]; then
+        controller_host=${current_controller%:*}
+    else
+        controller_host="127.0.0.1"
+    fi
+    printf '%s:%s\n' "$controller_host" "$port"
+}
+
+_apply_port_overrides() {
+    local mixed_override external_override
+    local target_mixed target_external
+
+    mixed_override=$(_port_override "MIXED_PORT")
+    external_override=$(_port_override "EXTERNAL_PORT")
+
+    if [ -n "$mixed_override" ] && ! _valid_port "$mixed_override"; then
+        _red "保存的代理端口无效: $mixed_override"
+        return 1
+    fi
+    if [ -n "$external_override" ] && ! _valid_port "$external_override"; then
+        _red "保存的 UI/API 控制端口无效: $external_override"
+        return 1
+    fi
+
+    target_mixed=${mixed_override:-$(_mixed_port_from_config)}
+    target_external=${external_override:-$(_external_port_from_config)}
+    if [ "$target_mixed" = "$target_external" ]; then
+        _red "保存的端口覆盖值与订阅端口冲突: $target_mixed"
+        return 1
+    fi
+
+    if [ -n "$mixed_override" ]; then
+        _set_yaml_value "mixed-port" "$mixed_override" || return 1
+    fi
+    if [ -n "$external_override" ]; then
+        _set_yaml_value "external-controller" "$(_controller_value_for_port "$external_override")" || return 1
+    fi
+
+    MIXED_PORT=$target_mixed
+    EXTERNAL_PORT=$target_external
 }
 
 _container_running() {
@@ -275,7 +371,7 @@ _restart_after_config_change() {
 cmd_port() {
     local port_type=$1
     local new_port=$2
-    local key value label other_port old_proxy_port
+    local key value label other_port old_proxy_port override_key
     local was_running=0
     local proxy_rc_was_set=0
     local proxy_env_was_set=0
@@ -292,11 +388,13 @@ cmd_port() {
     case "$port_type" in
         proxy|mixed)
             key="mixed-port"
+            override_key="MIXED_PORT"
             label="代理"
             other_port=$EXTERNAL_PORT
             ;;
         ui|api|controller)
             key="external-controller"
+            override_key="EXTERNAL_PORT"
             label="UI/API 控制"
             other_port=$MIXED_PORT
             ;;
@@ -323,24 +421,28 @@ cmd_port() {
         _current_proxy_uses_port "$old_proxy_port" && proxy_env_was_set=1
     fi
 
-    cp "$CONFIG_FILE" "$CONFIG_FILE.port.bak"
+    _save_port_override "$override_key" "$new_port" || {
+        _red "保存端口设置失败"
+        return 1
+    }
+
+    if ! cp "$CONFIG_FILE" "$CONFIG_FILE.port.bak"; then
+        _red "备份配置文件失败"
+        return 1
+    fi
     chmod 600 "$CONFIG_FILE.port.bak"
     if [ "$key" = "external-controller" ]; then
-        local current_controller controller_host
-        current_controller=$(_yaml_value "external-controller")
-        if [[ "$current_controller" == *:* ]]; then
-            controller_host=${current_controller%:*}
-        else
-            controller_host="127.0.0.1"
-        fi
-        value="${controller_host}:$new_port"
+        value=$(_controller_value_for_port "$new_port")
         EXTERNAL_PORT=$new_port
     else
         value=$new_port
         MIXED_PORT=$new_port
     fi
-    _set_yaml_value "$key" "$value"
-    _green "${label}端口已修改为: $new_port"
+    if ! _set_yaml_value "$key" "$value"; then
+        _red "修改配置文件失败；端口设置已保存，将在下次启动或更新订阅时重试"
+        return 1
+    fi
+    _green "${label}端口已保存并修改为: $new_port"
     if ! _restart_after_config_change "$was_running"; then
         _red "端口已写入配置，但 Clash 重启失败；shell 代理配置未更新"
         return 1
@@ -428,6 +530,7 @@ _unset_rc_proxy() {
 cmd_on() {
     _check_docker || return 1
     _check_config || return 1
+    _apply_port_overrides || return 1
     _warn_controller_security
 
     # 检查是否已在运行
@@ -542,8 +645,17 @@ cmd_update() {
         if grep -qE '^(proxies|port|mixed-port|external-controller)' "$CONFIG_FILE.tmp" 2>/dev/null; then
             mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
             chmod 600 "$CONFIG_FILE"
-            MIXED_PORT=$(_mixed_port_from_config)
-            EXTERNAL_PORT=$(_external_port_from_config)
+            if ! _apply_port_overrides; then
+                if [ -f "$CONFIG_FILE.bak" ]; then
+                    cp "$CONFIG_FILE.bak" "$CONFIG_FILE"
+                    chmod 600 "$CONFIG_FILE"
+                    _red "订阅已下载，但端口覆盖值应用失败，已恢复原配置"
+                else
+                    rm -f "$CONFIG_FILE"
+                    _red "订阅已下载，但端口覆盖值应用失败，已丢弃新配置"
+                fi
+                return 1
+            fi
             # 保存订阅链接
             _save_subscription_url "$url"
             _green "订阅更新成功"
@@ -762,6 +874,7 @@ upgrade_installation() {
     chmod 700 "$CLASH_DIR"
     [ -f "$CLASH_DIR/config.yaml" ] && chmod 600 "$CLASH_DIR/config.yaml"
     [ -f "$CLASH_DIR/.env" ] && chmod 600 "$CLASH_DIR/.env"
+    [ -f "$CLASH_DIR/ports.env" ] && chmod 600 "$CLASH_DIR/ports.env"
     _green "clashctl 已更新到版本 $SCRIPT_VERSION"
     _yellow "订阅、配置和当前容器均未修改"
 }
@@ -798,6 +911,7 @@ main() {
         touch "$CLASH_DIR/.env"
     fi
     chmod 600 "$CLASH_DIR/.env"
+    [ -f "$CLASH_DIR/ports.env" ] && chmod 600 "$CLASH_DIR/ports.env"
 
     # 创建主脚本
     _create_script

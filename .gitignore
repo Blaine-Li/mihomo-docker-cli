@@ -1,5 +1,6 @@
 .DS_Store
 .env
+ports.env
 config.yaml
 config.yaml.*
 *.bak
