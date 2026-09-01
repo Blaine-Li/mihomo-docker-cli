@@ -12,7 +12,7 @@
 - 使用临时容器（`--rm`），停止后自动删除
 - 不设置开机自启，不持久化容器
 - 配置和订阅链接保存在用户目录，并限制为仅当前用户可读
-- 默认使用官方镜像 `docker.io/metacubex/mihomo:latest`
+- 默认通过镜像源 `docker.gh-proxy.com/metacubex/mihomo` 拉取 Mihomo
 
 ## 运行要求
 
@@ -26,23 +26,10 @@
 
 ## 安装
 
-推荐先克隆并审查脚本，再执行：
+一行安装：
 
 ```bash
-git clone https://github.com/Blaine-Li/mihomo-docker-cli.git
-cd mihomo-docker-cli
-less install.sh
-bash install.sh
-```
-
-也可以只下载安装脚本：
-
-```bash
-curl -fsSL \
-  https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh \
-  -o install.sh
-less install.sh
-bash install.sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh)"
 ```
 
 安装过程会询问订阅链接。可以直接回车跳过，之后通过 `clashctl` 交互菜单配置。
@@ -141,8 +128,8 @@ http://127.0.0.1:9090
 ## 安全说明
 
 - 优先使用交互菜单输入订阅链接，避免 URL 留在 shell 历史中。
-- 安装与 `clashctl upgrade` 都会下载远程脚本。建议在执行前检查脚本内容；项目当前没有提供签名更新机制。
-- 默认镜像使用 `latest` 标签，便于更新但不能保证构建内容固定。高安全要求环境可在启动前设置 `CLASH_IMAGE` 为可信版本或 digest，例如 `docker.io/metacubex/mihomo@sha256:<digest>`。
+- 安装与 `clashctl upgrade` 都会下载远程脚本，项目当前没有提供签名更新机制。
+- 默认镜像源未固定镜像 digest。高安全要求环境可在启动前通过 `CLASH_IMAGE` 指定可信版本或 digest。
 - 容器使用 host 网络、`NET_ADMIN` 和 TUN 设备，权限高于普通容器。只在可信主机上运行，并审查订阅配置。
 - 在线面板是在浏览器中运行的代码。只使用可信面板，并为远程控制 API 配置密钥和网络访问控制。
 
@@ -153,7 +140,7 @@ http://127.0.0.1:9090
 启动前设置 `CLASH_IMAGE` 即可覆盖默认镜像：
 
 ```bash
-export CLASH_IMAGE='docker.io/metacubex/mihomo:v1.19.28'
+export CLASH_IMAGE='docker.gh-proxy.com/metacubex/mihomo:v1.19.28'
 clashon
 ```
 

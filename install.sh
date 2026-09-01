@@ -86,7 +86,7 @@ INSTALL_URL="https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/
 SCRIPT_VERSION="2.1.0"
 
 # Docker 镜像
-IMAGE="${CLASH_IMAGE:-docker.io/metacubex/mihomo:latest}"
+IMAGE="${CLASH_IMAGE:-docker.gh-proxy.com/metacubex/mihomo}"
 CONTAINER_NAME="clash"
 
 # 订阅链接和节点凭据仅允许当前用户读取
