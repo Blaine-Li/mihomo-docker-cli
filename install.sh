@@ -9,7 +9,7 @@ set -e
 CLASH_DIR="$HOME/.clash"
 SCRIPT_NAME="clashctl"
 INSTALL_URL="https://v6.gh-proxy.org/https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh"
-SCRIPT_VERSION="2.2.0"
+SCRIPT_VERSION="2.2.1"
 SUBSCRIPTION_USER_AGENT="clash-verge/v2.4.5"
 
 # 颜色输出
@@ -87,7 +87,7 @@ CONFIG_FILE="$CLASH_DIR/config.yaml"
 ENV_FILE="$CLASH_DIR/.env"
 PORTS_FILE="$CLASH_DIR/ports.env"
 INSTALL_URL="https://v6.gh-proxy.org/https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh"
-SCRIPT_VERSION="2.2.0"
+SCRIPT_VERSION="2.2.1"
 SUBSCRIPTION_USER_AGENT="clash-verge/v2.4.5"
 
 # Docker 镜像
@@ -565,7 +565,7 @@ cmd_on() {
         _green "Clash 启动成功"
         _green "代理地址: http://127.0.0.1:$MIXED_PORT"
         _green "API 地址: http://127.0.0.1:$EXTERNAL_PORT"
-        _green "Web 面板: https://d.metacubex.one (后端地址填 http://127.0.0.1:$EXTERNAL_PORT)"
+        _green "Web 面板: https://metacubex.github.io/metacubexd"
     else
         _red "Clash 启动失败，请检查日志: clashctl logs"
         return 1
@@ -596,7 +596,7 @@ cmd_status() {
         _green "Clash 状态: 运行中"
         _green "代理地址: http://127.0.0.1:$MIXED_PORT"
         _green "API 地址: http://127.0.0.1:$EXTERNAL_PORT"
-        _green "Web 面板: https://d.metacubex.one (后端地址填 http://127.0.0.1:$EXTERNAL_PORT)"
+        _green "Web 面板: https://metacubex.github.io/metacubexd"
         echo ""
         echo "当前代理环境变量:"
         echo "  http_proxy:  ${http_proxy:-未设置}"
@@ -746,40 +746,38 @@ cmd_menu() {
         echo ""
         _green "=== Clash 管理工具 ==="
         echo ""
-        echo "1) 启动 Clash (clashon)"
-        echo "2) 停止 Clash (clashoff)"
-        echo "3) 查看状态"
-        echo "4) 查看日志"
-        echo "5) 更新订阅"
-        echo "6) 修改代理端口"
-        echo "7) 修改 UI/API 控制端口"
-        echo "8) 更新管理脚本"
-        echo "9) 卸载 Clash"
+        echo "1) 查看状态"
+        echo "2) 查看日志"
+        echo "3) 更新订阅"
+        echo "4) 修改代理端口"
+        echo "5) 修改 UI/API 控制端口"
+        echo "6) 更新管理脚本"
+        echo "7) 卸载 Clash"
         echo "0) 退出"
         echo ""
-        read -p "请选择 [0-9]: " choice
+        echo "如要启停请输入 clashon 或 clashoff"
+        echo ""
+        read -p "请选择 [0-7]: " choice
 
         case $choice in
-            1) cmd_on ;;
-            2) cmd_off ;;
-            3) cmd_status ;;
-            4) cmd_logs ;;
-            5)
+            1) cmd_status ;;
+            2) cmd_logs ;;
+            3)
                 read -p "请输入订阅链接 (直接回车使用上次链接): " url
                 cmd_update "$url"
                 ;;
-            6)
+            4)
                 read -p "请输入新的代理端口 [1-65535]: " port
                 cmd_port proxy "$port"
                 ;;
-            7)
+            5)
                 read -p "请输入新的 UI/API 控制端口 [1-65535]: " port
                 cmd_port ui "$port"
                 ;;
-            8)
+            6)
                 cmd_upgrade
                 ;;
-            9)
+            7)
                 read -p "确认卸载? [y/N]: " confirm
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
                     cmd_uninstall

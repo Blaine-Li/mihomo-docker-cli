@@ -57,16 +57,16 @@ source ~/.clash/clashctl off
 直接运行 `clashctl` 可打开交互菜单：
 
 ```text
-1) 启动 Clash (clashon)
-2) 停止 Clash (clashoff)
-3) 查看状态
-4) 查看日志
-5) 更新订阅
-6) 修改代理端口
-7) 修改 UI/API 控制端口
-8) 更新管理脚本
-9) 卸载 Clash
+1) 查看状态
+2) 查看日志
+3) 更新订阅
+4) 修改代理端口
+5) 修改 UI/API 控制端口
+6) 更新管理脚本
+7) 卸载 Clash
 0) 退出
+
+如要启停请输入 clashon 或 clashoff
 ```
 
 常用命令：
@@ -104,13 +104,7 @@ source ~/.clash/clashctl off
 
 ## Web 面板
 
-Mihomo 的控制端口提供 API，不直接提供网页。可以使用 [MetaCubeXD 官方面板](https://d.metacubex.one)，后端地址通常填写：
-
-```text
-http://127.0.0.1:9090
-```
-
-如果修改过控制端口，请替换 `9090`。若配置包含 `secret`，还需要在面板中填写同一个密钥。
+Mihomo 的控制端口提供 API，不直接提供网页。可以使用 [MetaCubeXD 官方面板](https://metacubex.github.io/metacubexd)。若配置包含 `secret`，还需要在面板中填写同一个密钥。
 
 默认建议让 `external-controller` 仅监听 `127.0.0.1`。如确需远程访问，请按照 [Mihomo 通用配置文档](https://wiki.metacubex.one/config/general/) 设置强 `secret`、限制防火墙来源，并将 `external-controller-cors` 限制为可信面板来源。不要把无认证的控制 API 暴露到公网。
 
