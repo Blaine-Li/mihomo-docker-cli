@@ -8,8 +8,9 @@ set -e
 
 CLASH_DIR="$HOME/.clash"
 SCRIPT_NAME="clashctl"
-INSTALL_URL="https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh"
-SCRIPT_VERSION="2.1.0"
+INSTALL_URL="https://v6.gh-proxy.org/https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh"
+SCRIPT_VERSION="2.1.1"
+SUBSCRIPTION_USER_AGENT="clash-verge/v2.4.5"
 
 # 颜色输出
 _red() { echo -e "\033[31m$*\033[0m"; }
@@ -51,7 +52,9 @@ _download_config() {
     local output=$2
 
     _yellow "正在下载订阅配置..."
-    if curl -fsSL --max-time 30 "$url" -o "$output.tmp"; then
+    if curl -fsSL --max-time 30 \
+        --user-agent "$SUBSCRIPTION_USER_AGENT" \
+        "$url" -o "$output.tmp"; then
         # 验证是否为有效的 Clash 配置
         if grep -qE '^(proxies|port|mixed-port|external-controller)' "$output.tmp" 2>/dev/null; then
             mv "$output.tmp" "$output"
@@ -82,8 +85,9 @@ _create_script() {
 CLASH_DIR="$HOME/.clash"
 CONFIG_FILE="$CLASH_DIR/config.yaml"
 ENV_FILE="$CLASH_DIR/.env"
-INSTALL_URL="https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh"
-SCRIPT_VERSION="2.1.0"
+INSTALL_URL="https://v6.gh-proxy.org/https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh"
+SCRIPT_VERSION="2.1.1"
+SUBSCRIPTION_USER_AGENT="clash-verge/v2.4.5"
 
 # Docker 镜像
 IMAGE="${CLASH_IMAGE:-docker.gh-proxy.com/metacubex/mihomo}"
@@ -532,7 +536,9 @@ cmd_update() {
     fi
 
     # 下载配置
-    if curl -fsSL --max-time 30 "$url" -o "$CONFIG_FILE.tmp"; then
+    if curl -fsSL --max-time 30 \
+        --user-agent "$SUBSCRIPTION_USER_AGENT" \
+        "$url" -o "$CONFIG_FILE.tmp"; then
         if grep -qE '^(proxies|port|mixed-port|external-controller)' "$CONFIG_FILE.tmp" 2>/dev/null; then
             mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
             chmod 600 "$CONFIG_FILE"

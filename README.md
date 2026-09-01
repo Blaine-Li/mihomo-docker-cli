@@ -89,6 +89,8 @@ source ~/.clash/clashctl off
 
 这里的“代理”指 `http_proxy`、`https_proxy`、`all_proxy` 等 shell 环境变量，不会自动修改桌面系统代理，也不保证浏览器或图形应用使用该代理。
 
+首次下载和后续更新订阅时，请求会使用 `User-Agent: clash-verge/v2.4.5`，以兼容会校验客户端类型的订阅服务。
+
 ## 端口与配置
 
 默认端口：
