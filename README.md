@@ -29,7 +29,7 @@
 一行安装：
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh)"
+bash -c "$(curl -fsSL https://v6.gh-proxy.org/https://raw.githubusercontent.com/Blaine-Li/mihomo-docker-cli/main/install.sh)"
 ```
 
 安装过程会询问订阅链接。可以直接回车跳过，之后通过 `clashctl` 交互菜单配置。
